@@ -3,12 +3,8 @@
     <div class="container footer-inner">
       <div class="footer-brand">
         <div class="footer-logo">
-          <svg width="22" height="22" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.6"/>
-            <path d="M10 10C10 8.34 11.34 7 13 7C14.66 7 16 8.34 16 10C16 11.3 15.2 12.4 14.06 12.83C13.43 13.07 13 13.66 13 14.33V15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <circle cx="13" cy="18" r="1" fill="currentColor"/>
-          </svg>
-          <span>Зібрався</span>
+          Зібрався
+          <img src="/logo.svg" alt="?" width="26" height="26" style="flex-shrink:0" />
         </div>
         <p class="footer-desc">Місце, де люди знаходять однодумців і створюють спільні моменти по всій Україні.</p>
         <a href="mailto:hello@zibravsia.ua" class="footer-email">hello@zibravsia.ua</a>
@@ -30,7 +26,7 @@
 .footer-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0px;
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 600;
