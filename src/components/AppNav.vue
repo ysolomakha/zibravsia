@@ -12,6 +12,7 @@
       <div class="nav-links">
         <RouterLink to="/events" class="nav-link">Події</RouterLink>
         <RouterLink to="/about" class="nav-link">Про нас</RouterLink>
+        <RouterLink to="/gallery" class="nav-link">Галерея</RouterLink>
       </div>
 
       <div class="nav-actions">
@@ -35,6 +36,7 @@
       <div v-if="menuOpen" class="nav-mobile">
         <RouterLink to="/events" class="nav-mobile-link" @click="menuOpen = false">Події</RouterLink>
         <RouterLink to="/about" class="nav-mobile-link" @click="menuOpen = false">Про нас</RouterLink>
+        <RouterLink to="/gallery" class="nav-mobile-link" @click="menuOpen = false">Галерея</RouterLink>
         <template v-if="auth.isLoggedIn">
           <RouterLink to="/cabinet" class="nav-mobile-link" @click="menuOpen = false">Кабінет</RouterLink>
           <button class="nav-mobile-link" @click="handleLogout">Вийти</button>

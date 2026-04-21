@@ -52,6 +52,28 @@
       </div>
     </section>
 
+    <section v-if="galleryPhotos.length" class="gallery-preview">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">З наших зустрічей</h2>
+          <RouterLink to="/gallery" class="btn btn-ghost">Вся галерея →</RouterLink>
+        </div>
+        <div class="gallery-scroll">
+          <div
+            v-for="photo in galleryPhotos"
+            :key="photo.id"
+            class="gallery-scroll-item"
+          >
+            <img :src="photo.url" :alt="photo.eventTitle" />
+            <div class="gallery-scroll-info">
+              <p class="gallery-scroll-title">{{ photo.eventTitle }}</p>
+              <p class="gallery-scroll-date">{{ formatGalleryDate(photo.eventDate) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="cta-section">
       <div class="container">
         <div class="cta-box">
@@ -78,6 +100,10 @@ const searchQuery = ref('')
 // getAll already sorts by date asc — take first 4 (nearest)
 const allEvents = computed(() => eventsStore.getAll())
 const featuredEvents = computed(() => allEvents.value.slice(0, 4))
+const galleryPhotos = computed(() => eventsStore.getGalleryPhotos().slice(0, 10))
+function formatGalleryDate(d) {
+  return new Date(d).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
+}
 const totalEvents = computed(() => allEvents.value.length)
 
 function goSearch() {
@@ -120,6 +146,54 @@ function goSearch() {
 .cta-title { position: relative; font-family: var(--font-display); font-size: clamp(24px, 4vw, 36px); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 16px; }
 .cta-sub { position: relative; color: var(--text-muted); font-size: 16px; max-width: 400px; margin: 0 auto 32px; line-height: 1.7; }
 .cta-box .btn { position: relative; padding: 16px 40px; font-size: 15px; }
+
+.gallery-preview { margin-bottom: 80px; }
+
+.gallery-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--navy) transparent;
+}
+.gallery-scroll::-webkit-scrollbar { height: 4px; }
+.gallery-scroll::-webkit-scrollbar-thumb { background: var(--navy); border-radius: 2px; }
+
+.gallery-scroll-item {
+  flex-shrink: 0;
+  width: 240px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+}
+
+.gallery-scroll-item img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.gallery-scroll-info {
+  padding: 12px 14px;
+}
+
+.gallery-scroll-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gallery-scroll-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
 @media (max-width: 640px) {
   .hero { padding: 60px 0 50px; }
