@@ -52,7 +52,9 @@ import { useEventsStore } from '@/stores'
 const eventsStore = useEventsStore()
 const activePhoto = ref(null)
 
-const photos = computed(() => eventsStore.getGalleryPhotos())
+const photos = computed(() =>
+  [...eventsStore.galleryPhotos].sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt))
+)
 
 function openPhoto(photo) {
   activePhoto.value = photo

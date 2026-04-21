@@ -92,6 +92,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores'
 import EventCard from '@/components/EventCard.vue'
+import { getEventStatus } from '@/stores'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
@@ -100,11 +101,18 @@ const searchQuery = ref('')
 // getAll already sorts by date asc — take first 4 (nearest)
 const allEvents = computed(() => eventsStore.getAll())
 const featuredEvents = computed(() => allEvents.value.slice(0, 4))
-const galleryPhotos = computed(() => eventsStore.getGalleryPhotos().slice(0, 10))
+const galleryPhotos = computed(() =>
+  [...eventsStore.galleryPhotos]
+    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt))
+    .slice(0, 10)
+)
 function formatGalleryDate(d) {
   return new Date(d).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
 }
-const totalEvents = computed(() => allEvents.value.length)
+
+const totalEvents = computed(() =>
+  allEvents.value.filter(e => getEventStatus(e) === 'active').length
+)
 
 function goSearch() {
   router.push(searchQuery.value.trim() ? { path: '/events', query: { q: searchQuery.value.trim() } } : '/events')

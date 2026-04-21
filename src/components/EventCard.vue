@@ -2,6 +2,7 @@
   <RouterLink :to="`/events/${event.id}`" class="event-card">
     <div class="card-img-wrap">
       <img :src="event.image" :alt="event.title" loading="lazy" />
+      <span v-if="status === 'ongoing'" class="card-ongoing">Зараз відбувається</span>
       <span class="card-category tag" :class="categoryClass">{{ event.category }}</span>
     </div>
     <div class="card-body">
@@ -43,6 +44,11 @@ function formatDate(dateStr) {
   const d = new Date(dateStr)
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
+
+import { getEventStatus } from '@/stores'
+import { computed } from 'vue'
+
+const status = computed(() => getEventStatus(props.event))
 </script>
 
 <style scoped>
@@ -55,6 +61,20 @@ function formatDate(dateStr) {
   transition: all var(--transition);
   display: block;
   cursor: pointer;
+}
+
+.card-ongoing {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  background: var(--yellow);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
 }
 
 .event-card:hover {

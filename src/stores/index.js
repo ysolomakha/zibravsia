@@ -8,6 +8,26 @@ export function formatDuration(hours, minutes) {
   return `${hours} год ${minutes} хв`
 }
 
+export function getEventStatus(event) {
+  const now = new Date()
+  const start = new Date(event.date)
+  
+  // parse duration to minutes
+  let durationMinutes = 0
+  const dur = event.duration || ''
+  const hoursMatch = dur.match(/(\d+)\s*год/)
+  const minutesMatch = dur.match(/(\d+)\s*хв/)
+  if (hoursMatch) durationMinutes += parseInt(hoursMatch[1]) * 60
+  if (minutesMatch) durationMinutes += parseInt(minutesMatch[1])
+  if (durationMinutes === 0) durationMinutes = 120 // default 2h
+  
+  const end = new Date(start.getTime() + durationMinutes * 60000)
+  
+  if (now < start) return 'active'      // ще не почалась
+  if (now >= start && now < end) return 'ongoing'   // триває
+  return 'ended'                         // завершена
+}
+
 function futureDateFrom(daysFromNow, hour = 12) {
   const d = new Date()
   d.setDate(d.getDate() + daysFromNow)
@@ -97,7 +117,9 @@ export const useEventsStore = defineStore('events', () => {
     return [...mocks, ...customEvents.value].sort((a, b) => new Date(a.date) - new Date(b.date))
   })
 
-  function getAll() { return allEvents.value }
+function getAll() {
+  return allEvents.value.filter(e => getEventStatus(e) !== 'ended')
+}
 
   function getById(id) {
     const mock = MOCK_EVENTS.find(e => e.id === id)
