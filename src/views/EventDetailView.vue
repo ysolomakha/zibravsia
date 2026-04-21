@@ -67,7 +67,7 @@
         <!-- Sidebar -->
         <aside class="detail-sidebar">
           <div class="join-card">
-            <div class="join-spots">
+           <div class="join-spots">
               <div class="spots-bar">
                 <div class="spots-fill" :style="{ width: spotsPercent + '%' }" :class="{ 'spots-full': isFull }"></div>
               </div>
@@ -77,8 +77,18 @@
               </p>
             </div>
 
+            <div v-if="isOngoing" class="status-badge ongoing-badge">Подія зараз відбувається</div>
+            <div v-else-if="isEnded" class="status-badge ended-badge">Подія завершилась</div>
+
             <div v-if="alreadyJoined" class="joined-msg">Ти вже зареєстрований на цю подію</div>
-            <button v-else-if="!isFull" class="btn btn-primary join-btn" @click="showModal = true">Приєднатись</button>
+            <button
+              v-else-if="!isFull && eventStatus === 'active'"
+              class="btn btn-primary join-btn"
+              @click="showModal = true"
+            >Приєднатись</button>
+            <button v-else-if="eventStatus !== 'active'" class="btn btn-outline join-btn" disabled>
+              {{ isOngoing ? 'Запис закрито' : 'Подія завершилась' }}
+            </button>
             <button v-else class="btn btn-outline join-btn" disabled>Місця заповнені</button>
 
             <div class="join-note">Адреса зустрічі надсилається на пошту після підтвердження реєстрації.</div>
@@ -149,6 +159,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore, useEventsStore } from '@/stores'
+import { getEventStatus } from '@/stores'
 
 const route = useRoute()
 const eventsStore = useEventsStore()
@@ -183,6 +194,10 @@ const galleryPhotos = computed(() => {
 const isOwner = computed(() =>
   auth.isLoggedIn && event.value && event.value.userId === auth.user?.id
 )
+
+const eventStatus = computed(() => event.value ? getEventStatus(event.value) : 'active')
+const isOngoing = computed(() => eventStatus.value === 'ongoing')
+const isEnded = computed(() => eventStatus.value === 'ended')
 
 function confirmDeletePhoto(photoId) {
   photoToDelete.value = photoId
@@ -272,6 +287,24 @@ function submitJoin() {
 .join-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .join-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 16px; }
 .joined-msg { background: rgba(168, 163, 246, 0.1); border: 1px solid var(--lavender); border-radius: var(--radius); padding: 14px 18px; font-size: 14px; color: var(--lavender); text-align: center; line-height: 1.5; }
+
+.status-badge {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+.ongoing-badge {
+  background: rgba(248, 255, 161, 0.1);
+  border: 1px solid rgba(248, 255, 161, 0.3);
+  color: var(--yellow);
+}
+.ended-badge {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
 
 .modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; margin-bottom: 6px; }
 .modal-event-name { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
