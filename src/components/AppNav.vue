@@ -3,14 +3,10 @@
     <div class="container nav-inner">
 
       <RouterLink to="/" class="nav-logo" @mouseenter="logoHover = true" @mouseleave="logoHover = false">
-        <span class="logo-icon" :class="{ 'logo-animate': logoHover }">
-          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.6"/>
-            <path d="M10 10C10 8.34 11.34 7 13 7C14.66 7 16 8.34 16 10C16 11.3 15.2 12.4 14.06 12.83C13.43 13.07 13 13.66 13 14.33V15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            <circle cx="13" cy="18" r="1" fill="currentColor"/>
-          </svg>
-        </span>
         <span class="logo-text">Зібрався</span>
+        <span class="logo-icon" :class="{ 'logo-animate': logoHover }">
+          <img src="/logo.svg" alt="?" width="50" height="50" />
+        </span>
       </RouterLink>
 
       <div class="nav-links">
@@ -82,7 +78,7 @@ function handleLogout() {
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 0px;
   font-family: var(--font-display);
   font-size: 18px;
   font-weight: 600;
