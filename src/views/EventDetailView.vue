@@ -10,6 +10,17 @@
             <span class="tag detail-cat" :class="categoryClass">{{ event.category }}</span>
           </div>
 
+          <!-- Фото з події — видно організатору -->
+          <div v-if="isOwner && galleryPhotos.length" class="event-gallery">
+            <h3 class="event-gallery-title">Фото з події</h3>
+            <div class="event-gallery-grid">
+              <div v-for="photo in galleryPhotos" :key="photo.id" class="event-gallery-item">
+                <img :src="photo.url" :alt="event.title" />
+                <button class="event-gallery-delete" @click="confirmDeletePhoto(photo.id)" title="Видалити фото">✕</button>
+              </div>
+            </div>
+          </div>
+
           <div class="detail-content">
             <div class="detail-meta">
               <span class="detail-city">{{ event.city }}</span>
@@ -117,6 +128,20 @@
         </div>
       </div>
     </Transition>
+
+        <!-- Підтвердження видалення фото -->
+    <Transition name="modal">
+      <div v-if="photoToDelete" class="modal-overlay" @click.self="photoToDelete = null">
+        <div class="modal-box confirm-modal">
+          <h2 class="modal-title">Видалити фото?</h2>
+          <p class="confirm-text">Фото буде видалено з галереї назавжди.</p>
+          <div class="confirm-actions">
+            <button class="btn btn-outline" @click="photoToDelete = null">Скасувати</button>
+            <button class="btn-danger-confirm" @click="doDeletePhoto">Так, видалити</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -136,11 +161,11 @@ const alreadyJoined = ref(false)
 const liveParticipants = ref(0)
 const form = ref({ name: '', phone: '', email: '' })
 const errors = ref({})
+const photoToDelete = ref(null)
 
 onMounted(() => {
   event.value = eventsStore.getById(route.params.id)
   if (event.value) liveParticipants.value = event.value.currentParticipants
-
   if (auth.isLoggedIn) {
     form.value.name = auth.user.name + (auth.user.lastName ? ' ' + auth.user.lastName : '')
     form.value.email = auth.user.email
@@ -149,6 +174,24 @@ onMounted(() => {
     }
   }
 })
+
+const galleryPhotos = computed(() => {
+  if (!event.value) return []
+  return eventsStore.galleryPhotos.filter(p => p.eventId === event.value.id)
+})
+
+const isOwner = computed(() =>
+  auth.isLoggedIn && event.value && event.value.userId === auth.user?.id
+)
+
+function confirmDeletePhoto(photoId) {
+  photoToDelete.value = photoId
+}
+
+function doDeletePhoto() {
+  eventsStore.deleteGalleryPhoto(photoToDelete.value)
+  photoToDelete.value = null
+}
 
 const CATEGORY_CLASSES = {
   'Культура': 'tag-yellow', 'Спорт': 'tag-lavender', 'Музика': 'tag-pink',
@@ -240,6 +283,33 @@ function submitJoin() {
 .success-icon { width: 56px; height: 56px; border-radius: 50%; background: rgba(168, 163, 246, 0.15); border: 1px solid var(--lavender); color: var(--lavender); font-size: 22px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
 .success-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; margin-bottom: 10px; }
 .success-sub { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+.event-gallery { margin-top: 32px; }
+.event-gallery-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.event-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.event-gallery-item { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 1; }
+.event-gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+.event-gallery-delete {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(13,15,26,0.8);
+  border: none;
+  color: #ff6b6b;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.event-gallery-item:hover .event-gallery-delete { opacity: 1; }
+
+.confirm-modal { max-width: 420px; }
+.confirm-text { color: var(--text-muted); font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
+.confirm-actions { display: flex; gap: 12px; justify-content: flex-end; }
+.btn-danger-confirm { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #ff6b6b; padding: 11px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); }
+.btn-danger-confirm:hover { background: rgba(255,107,107,0.2); }
 
 .field-error-box { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; color: #ff6b6b; }
 .not-found { padding: 80px 0; text-align: center; color: var(--text-muted); }

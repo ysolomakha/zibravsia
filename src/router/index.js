@@ -5,6 +5,7 @@ const routes = [
   { path: '/events', component: () => import('@/views/EventsView.vue') },
   { path: '/events/:id', component: () => import('@/views/EventDetailView.vue') },
   { path: '/about', component: () => import('@/views/AboutView.vue') },
+  { path: '/gallery', component: () => import('@/views/GalleryView.vue') },
   { path: '/auth', component: () => import('@/views/AuthView.vue') },
   { path: '/cabinet', component: () => import('@/views/CabinetView.vue'), meta: { requiresAuth: true } }
 ]

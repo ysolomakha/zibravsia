@@ -34,8 +34,13 @@
               <p class="my-event-date">{{ formatDate(event.date) }} · {{ event.duration }}</p>
             </div>
             <div class="my-event-actions">
-              <RouterLink :to="`/events/${event.id}`" class="btn btn-ghost">Переглянути</RouterLink>
-              <button class="btn-delete" @click="confirmDelete(event)">Видалити</button>
+              <RouterLink :to="`/events/${event.id}`" class="btn btn-ghost event-action-btn">Переглянути</RouterLink>
+              <button
+                v-if="isPast(event.date)"
+                class="btn-add-photo"
+                @click="openAddPhoto(event)"
+              >+ Фото</button>
+              <button class="btn-delete" @click="confirmDelete(event)">Видалити подію</button>
             </div>
           </div>
         </TransitionGroup>
@@ -187,6 +192,35 @@
       </div>
     </Transition>
 
+    <!-- ── Add photo modal ── -->
+    <Transition name="modal">
+      <div v-if="photoEvent" class="modal-overlay" @click.self="photoEvent = null">
+        <div class="modal-box confirm-modal">
+          <button class="modal-close" @click="photoEvent = null">✕</button>
+          <h2 class="modal-title">Додати фото з події</h2>
+          <p class="confirm-text">{{ photoEvent.title }}</p>
+          <div v-if="!photoDone" class="create-form">
+            <div class="form-group">
+              <label class="form-label">URL фото</label>
+              <input
+                v-model="photoUrl"
+                class="form-input"
+                :class="{ error: photoError }"
+                placeholder="https://..."
+              />
+              <span v-if="photoError" class="form-error">{{ photoError }}</span>
+            </div>
+            <button class="btn btn-primary create-btn" @click="submitPhoto">Додати до галереї</button>
+          </div>
+          <div v-else class="modal-success">
+            <div class="success-icon">✓</div>
+            <p class="success-title">Фото додано!</p>
+            <p class="success-sub">Воно з'явилось у галереї на головній.</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ── Delete account confirm ── -->
     <Transition name="modal">
       <div v-if="showDeleteAccountModal" class="modal-overlay" @click.self="showDeleteAccountModal = false">
@@ -310,6 +344,31 @@ function doDeleteEvent() {
   eventToDelete.value = null
 }
 
+// ── Add photo to gallery ──
+const photoEvent = ref(null)
+const photoUrl = ref('')
+const photoError = ref('')
+const photoDone = ref(false)
+
+function isPast(date) {
+  return new Date(date) < new Date()
+}
+
+function openAddPhoto(event) {
+  photoEvent.value = event
+  photoUrl.value = ''
+  photoError.value = ''
+  photoDone.value = false
+}
+
+function submitPhoto() {
+  if (!photoUrl.value.trim()) { photoError.value = 'Введи URL фото'; return }
+  if (!/^https?:\/\/.+/.test(photoUrl.value)) { photoError.value = 'Невірний URL'; return }
+  eventsStore.addGalleryPhoto(photoEvent.value.id, photoUrl.value.trim())
+  photoDone.value = true
+  setTimeout(() => { photoEvent.value = null }, 2000)
+}
+
 // ── Delete account ──
 const showDeleteAccountModal = ref(false)
 function doDeleteAccount() {
@@ -348,7 +407,9 @@ function doDeleteAccount() {
 .my-event-city { font-size: 12px; color: var(--lavender); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
 .my-event-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
 .my-event-date { font-size: 13px; color: var(--text-muted); }
-.my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 120px; }
+
+.event-action-btn { justify-content: center; }
 
 .btn-delete { font-size: 13px; color: #ff6b6b; background: none; border: none; cursor: pointer; padding: 6px 12px; border-radius: 6px; transition: background var(--transition); font-family: var(--font-body); }
 .btn-delete:hover { background: rgba(255,107,107,0.1); }
@@ -407,6 +468,19 @@ textarea.form-input { resize: vertical; min-height: 100px; }
 .confirm-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .btn-danger-confirm { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #ff6b6b; padding: 11px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); }
 .btn-danger-confirm:hover { background: rgba(255,107,107,0.2); }
+
+.btn-add-photo {
+  font-size: 13px;
+  color: var(--lavender);
+  background: rgba(168,163,246,0.08);
+  border: 1px solid rgba(168,163,246,0.2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all var(--transition);
+}
+.btn-add-photo:hover { background: rgba(168,163,246,0.15); }
 
 @media (max-width: 640px) {
   .my-event-card { grid-template-columns: 1fr; }
