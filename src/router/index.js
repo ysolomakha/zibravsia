@@ -18,7 +18,9 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const user = JSON.parse(localStorage.getItem('zib_user') || 'null')
-  if (to.meta.requiresAuth && !user) {
+  // Supabase зберігає сесію під своїм ключем
+  const hasSession = Object.keys(localStorage).some(k => k.startsWith('sb-'))
+  if (to.meta.requiresAuth && !hasSession && !user) {
     return '/auth'
   }
 })

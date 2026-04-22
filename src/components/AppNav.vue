@@ -59,8 +59,8 @@ const router = useRouter()
 const menuOpen = ref(false)
 const logoHover = ref(false)
 
-function handleLogout() {
-  auth.logout()
+async function handleLogout() {
+  await auth.logout()
   menuOpen.value = false
   router.push('/')
 }
@@ -71,8 +71,7 @@ function handleLogout() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(13, 15, 26, 0.85);
-  backdrop-filter: blur(16px);
+  background: rgba(13, 15, 26, 0.97);
   border-bottom: 1px solid var(--border);
 }
 .nav-inner { display: flex; align-items: center; gap: 32px; height: 68px; }
