@@ -34,13 +34,13 @@
               <p class="my-event-date">{{ formatDate(event.date) }} · {{ event.duration }}</p>
             </div>
             <div class="my-event-actions">
-              <RouterLink :to="`/events/${event.id}`" class="btn btn-ghost event-action-btn">Переглянути</RouterLink>
+              <RouterLink :to="`/events/${event.id}`" class="btn btn-ghost">Переглянути</RouterLink>
               <button
                 v-if="isPast(event.date)"
                 class="btn-add-photo"
                 @click="openAddPhoto(event)"
               >+ Фото</button>
-              <button class="btn-delete" @click="confirmDelete(event)">Видалити подію</button>
+              <button class="btn-delete" @click="confirmDelete(event)">Видалити</button>
             </div>
           </div>
         </TransitionGroup>
@@ -51,7 +51,6 @@
         </div>
       </div>
 
-      <!-- Delete account — quiet, at the bottom -->
       <div class="delete-account-row">
         <button class="btn-delete-account" @click="showDeleteAccountModal = true">Видалити акаунт</button>
       </div>
@@ -192,7 +191,7 @@
       </div>
     </Transition>
 
-    <!-- ── Add photo modal ── -->
+    <!-- ── Add photo to gallery ── -->
     <Transition name="modal">
       <div v-if="photoEvent" class="modal-overlay" @click.self="photoEvent = null">
         <div class="modal-box confirm-modal">
@@ -253,6 +252,10 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function isPast(date) {
+  return new Date(date) < new Date()
+}
+
 // ── Create ──
 const showCreateModal = ref(false)
 const createDone = ref(false)
@@ -262,7 +265,7 @@ const durationMinutes = ref(0)
 const defaultEvent = () => ({
   title: '', city: '', category: 'Культура', duration: '',
   date: '', maxParticipants: 10, description: '', image: '',
-  host: [auth.user.name, auth.user.lastName].filter(Boolean).join(' ')
+  host: [auth.user.name, auth.user.last_name].filter(Boolean).join(' ')
 })
 const newEvent = ref(defaultEvent())
 const newErrors = ref({})
@@ -284,12 +287,16 @@ function validateCreate() {
   return !Object.keys(newErrors.value).length
 }
 
-function submitCreate() {
+async function submitCreate() {
   if (!validateCreate()) return
   newEvent.value.duration = buildDuration()
-  eventsStore.createEvent({ ...newEvent.value }, auth.user.id)
-  createDone.value = true
-  setTimeout(() => closeCreate(), 2200)
+  try {
+    await eventsStore.createEvent({ ...newEvent.value }, auth.user.id)
+    createDone.value = true
+    setTimeout(() => closeCreate(), 2200)
+  } catch (e) {
+    newErrors.value.title = 'Помилка: ' + e.message
+  }
 }
 
 function closeCreate() {
@@ -310,13 +317,13 @@ const editData = ref({ name: '', lastName: '', currentPassword: '', newPassword:
 const editErrors = ref({})
 
 function openEditModal() {
-  editData.value = { name: auth.user.name, lastName: auth.user.lastName || '', currentPassword: '', newPassword: '' }
+  editData.value = { name: auth.user.name, lastName: auth.user.last_name || '', currentPassword: '', newPassword: '' }
   editErrors.value = {}
   editDone.value = false
   showEditModal.value = true
 }
 
-function submitEdit() {
+async function submitEdit() {
   editErrors.value = {}
   if (editData.value.newPassword && !editData.value.currentPassword) {
     editErrors.value.currentPassword = 'Введи поточний пароль'; return
@@ -325,7 +332,7 @@ function submitEdit() {
     editErrors.value.newPassword = 'Мінімум 6 символів'; return
   }
   try {
-    auth.updateProfile({
+    await auth.updateProfile({
       name: editData.value.name,
       lastName: editData.value.lastName,
       currentPassword: editData.value.currentPassword || undefined,
@@ -339,20 +346,16 @@ function submitEdit() {
 // ── Delete event ──
 const eventToDelete = ref(null)
 function confirmDelete(event) { eventToDelete.value = event }
-function doDeleteEvent() {
-  eventsStore.deleteEvent(eventToDelete.value.id, auth.user.id)
+async function doDeleteEvent() {
+  await eventsStore.deleteEvent(eventToDelete.value.id, auth.user.id)
   eventToDelete.value = null
 }
 
-// ── Add photo to gallery ──
+// ── Gallery photo ──
 const photoEvent = ref(null)
 const photoUrl = ref('')
 const photoError = ref('')
 const photoDone = ref(false)
-
-function isPast(date) {
-  return new Date(date) < new Date()
-}
 
 function openAddPhoto(event) {
   photoEvent.value = event
@@ -361,26 +364,19 @@ function openAddPhoto(event) {
   photoDone.value = false
 }
 
-function submitPhoto() {
+async function submitPhoto() {
   if (!photoUrl.value.trim()) { photoError.value = 'Введи URL фото'; return }
   if (!/^https?:\/\/.+/.test(photoUrl.value)) { photoError.value = 'Невірний URL'; return }
-  eventsStore.addGalleryPhoto(photoEvent.value.id, photoUrl.value.trim())
+  await eventsStore.addGalleryPhoto(photoEvent.value.id, photoUrl.value.trim())
   photoDone.value = true
   setTimeout(() => { photoEvent.value = null }, 2000)
 }
 
 // ── Delete account ──
 const showDeleteAccountModal = ref(false)
-function doDeleteAccount() {
-  const userId = auth.user.id
-  // delete user's events from store
-  const events = eventsStore.getUserEvents(userId)
-  events.forEach(e => eventsStore.deleteEvent(e.id, userId))
-  // delete user from localStorage
-  let users = JSON.parse(localStorage.getItem('zib_users') || '[]')
-  users = users.filter(u => u.id !== userId)
-  localStorage.setItem('zib_users', JSON.stringify(users))
-  auth.logout()
+async function doDeleteAccount() {
+  await auth.deleteAccount(auth.user.id)
+  await new Promise(resolve => setTimeout(resolve, 300))
   router.push('/')
 }
 </script>
@@ -407,40 +403,24 @@ function doDeleteAccount() {
 .my-event-city { font-size: 12px; color: var(--lavender); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
 .my-event-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
 .my-event-date { font-size: 13px; color: var(--text-muted); }
-.my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 120px; }
-
-.event-action-btn { justify-content: center; }
+.my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 
 .btn-delete { font-size: 13px; color: #ff6b6b; background: none; border: none; cursor: pointer; padding: 6px 12px; border-radius: 6px; transition: background var(--transition); font-family: var(--font-body); }
 .btn-delete:hover { background: rgba(255,107,107,0.1); }
 
+.btn-add-photo { font-size: 13px; color: var(--lavender); background: rgba(168,163,246,0.08); border: 1px solid rgba(168,163,246,0.2); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); }
+.btn-add-photo:hover { background: rgba(168,163,246,0.15); }
+
 .cabinet-empty { text-align: center; padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 20px; color: var(--text-muted); }
 
-/* Delete account row — quiet at the bottom */
-.delete-account-row {
-  padding-top: 32px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-}
-.btn-delete-account {
-  font-size: 13px;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-body);
-  transition: color var(--transition);
-  padding: 6px 0;
-}
+.delete-account-row { padding-top: 32px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+.btn-delete-account { font-size: 13px; color: var(--text-muted); background: none; border: none; cursor: pointer; font-family: var(--font-body); transition: color var(--transition); padding: 6px 0; }
 .btn-delete-account:hover { color: #ff6b6b; }
 
-/* TransitionGroup */
 .list-enter-active, .list-leave-active { transition: all 0.3s ease; }
 .list-enter-from { opacity: 0; transform: translateY(-8px); }
 .list-leave-to { opacity: 0; transform: translateX(16px); }
 
-/* Modals */
 .create-modal { max-width: 640px; max-height: 90vh; overflow-y: auto; }
 .create-form { display: flex; flex-direction: column; gap: 16px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -469,23 +449,10 @@ textarea.form-input { resize: vertical; min-height: 100px; }
 .btn-danger-confirm { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #ff6b6b; padding: 11px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); }
 .btn-danger-confirm:hover { background: rgba(255,107,107,0.2); }
 
-.btn-add-photo {
-  font-size: 13px;
-  color: var(--lavender);
-  background: rgba(168,163,246,0.08);
-  border: 1px solid rgba(168,163,246,0.2);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: var(--font-body);
-  transition: all var(--transition);
-}
-.btn-add-photo:hover { background: rgba(168,163,246,0.15); }
-
 @media (max-width: 640px) {
   .my-event-card { grid-template-columns: 1fr; }
   .my-event-img { width: 100%; height: 140px; }
-  .my-event-actions { flex-direction: row; }
+  .my-event-actions { flex-direction: row; flex-wrap: wrap; }
   .form-row { grid-template-columns: 1fr; }
   .create-modal { padding: 24px 20px; }
 }

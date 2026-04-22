@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { supabase } from '@/supabase'
 
 export function formatDuration(hours, minutes) {
   if (hours === 0 && minutes === 0) return 'Весь день'
@@ -11,207 +12,283 @@ export function formatDuration(hours, minutes) {
 export function getEventStatus(event) {
   const now = new Date()
   const start = new Date(event.date)
-  
-  // parse duration to minutes
   let durationMinutes = 0
   const dur = event.duration || ''
   const hoursMatch = dur.match(/(\d+)\s*год/)
   const minutesMatch = dur.match(/(\d+)\s*хв/)
   if (hoursMatch) durationMinutes += parseInt(hoursMatch[1]) * 60
   if (minutesMatch) durationMinutes += parseInt(minutesMatch[1])
-  if (durationMinutes === 0) durationMinutes = 120 // default 2h
-  
+  if (durationMinutes === 0) durationMinutes = 120
   const end = new Date(start.getTime() + durationMinutes * 60000)
-  
-  if (now < start) return 'active'      // ще не почалась
-  if (now >= start && now < end) return 'ongoing'   // триває
-  return 'ended'                         // завершена
+  if (now < start) return 'active'
+  if (now >= start && now < end) return 'ongoing'
+  return 'ended'
 }
-
-function futureDateFrom(daysFromNow, hour = 12) {
-  const d = new Date()
-  d.setDate(d.getDate() + daysFromNow)
-  d.setHours(hour, 0, 0, 0)
-  return d.toISOString()
-}
-
-const MOCK_EVENTS = [
-  { id: '1', title: 'Чайна церемонія', city: 'Київ', category: 'Культура', date: futureDateFrom(3, 16), duration: '2 год', host: 'Оля Сенченко', description: 'Зануримось у традицію китайського чайного ритуалу. Навчимося розрізняти сорти чаю, правильно заварювати та насолоджуватись моментом у тиші. Кожен учасник отримає пробник улюбленого чаю додому.', image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80', maxParticipants: 8, currentParticipants: 5, userId: 'mock' },
-  { id: '2', title: 'Йога на природі', city: 'Львів', category: 'Спорт', date: futureDateFrom(7, 8), duration: '1 год 30 хв', host: 'Марко Іваненко', description: 'Ранкова практика хатха-йоги у парку Знесіння. Підходить для початківців і тих, хто хоче відновити практику. Беріть килимок і гарний настрій — решта є.', image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80', maxParticipants: 15, currentParticipants: 9, userId: 'mock' },
-  { id: '3', title: 'Пікнік-кінопоказ', city: 'Одеса', category: 'Кіно', date: futureDateFrom(14, 20), duration: '3 год', host: 'Дарина Коваль', description: 'Дивимось незалежне українське кіно під відкритим небом на Ланжероні. Буде пледи, свічки, теплий пунш. Список фільмів голосуємо разом у чаті напередодні.', image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&q=80', maxParticipants: 30, currentParticipants: 18, userId: 'mock' },
-  { id: '4', title: 'Виготовлення свічок', city: 'Харків', category: 'Майстерня', date: futureDateFrom(18, 13), duration: '2 год 30 хв', host: 'Тетяна Мороз', description: 'Майстер-клас із виготовлення соєвих свічок із натуральними ароматами. Кожен іде додому зі своїми двома свічками. Всі матеріали включені у вартість. Місць дуже мало.', image: 'https://images.unsplash.com/photo-1602178785042-c8e4fdd30474?w=800&q=80', maxParticipants: 10, currentParticipants: 7, userId: 'mock' },
-  { id: '5', title: 'Вечір живої музики', city: 'Київ', category: 'Музика', date: futureDateFrom(25, 19), duration: '3 год', host: 'Назар Білик', description: 'Камерний вечір у лофті: акустична гітара, фортепіано, голос. Програма — джаз і bossa nova. Формат: 40 хвилин музики, 20 хвилин спілкування. Вино та закуски за бажанням.', image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80', maxParticipants: 25, currentParticipants: 12, userId: 'mock' },
-  { id: '6', title: 'Speaking Club', city: 'Дніпро', category: 'Навчання', date: futureDateFrom(32, 11), duration: '2 год', host: 'Іван Стець', description: 'Англомовний розмовний клуб для рівнів B1+. Тема: подорожі та їхній вплив на особистість. Формат — малі групи по 4 людини зі зміною партнерів кожні 20 хвилин.', image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=80', maxParticipants: 16, currentParticipants: 8, userId: 'mock' },
-  { id: '7', title: 'Обговорення книги', city: 'Львів', category: 'Культура', date: futureDateFrom(40, 15), duration: '2 год', host: 'Соломія Гук', description: "Читаємо «Ворошиловград» Жадана. Збираємося щоб поділитись враженнями, знайти спільні теми та посперечатись про фінал. Книгу бажано прочитати заздалегідь.", image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80', maxParticipants: 12, currentParticipants: 6, userId: 'mock' },
-  { id: '8', title: 'Пленер у місті', city: 'Одеса', category: 'Мистецтво', date: futureDateFrom(50, 10), duration: '4 год', host: 'Аліна Журба', description: 'Малюємо Одесу — старе місто, дворики, море. Підходить для будь-якого рівня. Акварель або олівці — на вибір.', image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&q=80', maxParticipants: 20, currentParticipants: 11, userId: 'mock' }
-]
 
 // ── Auth Store ────────────────────────────────────────────────
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref(JSON.parse(localStorage.getItem('zib_user') || 'null'))
+  const user = ref(null)
   const isLoggedIn = computed(() => !!user.value)
 
-  function register(name, lastName, age, email, password) {
-    const users = JSON.parse(localStorage.getItem('zib_users') || '[]')
-    if (users.find(u => u.email === email)) throw new Error('Цей email вже зареєстрований')
-    if (parseInt(age) < 16) throw new Error('Реєстрація доступна з 16 років')
-    const newUser = { id: Date.now().toString(), name, lastName, age: parseInt(age), email, password }
-    users.push(newUser)
-    localStorage.setItem('zib_users', JSON.stringify(users))
-    const { password: _, ...safeUser } = newUser
-    user.value = safeUser
-    localStorage.setItem('zib_user', JSON.stringify(safeUser))
-  }
-
-  function login(email, password) {
-    const users = JSON.parse(localStorage.getItem('zib_users') || '[]')
-    const found = users.find(u => u.email === email && u.password === password)
-    if (!found) throw new Error('Невірний email або пароль')
-    const { password: _, ...safeUser } = found
-    user.value = safeUser
-    localStorage.setItem('zib_user', JSON.stringify(safeUser))
-  }
-
-  function logout() {
-    user.value = null
-    localStorage.removeItem('zib_user')
-  }
-
-  function updateProfile(updates) {
-    const users = JSON.parse(localStorage.getItem('zib_users') || '[]')
-    const idx = users.findIndex(u => u.id === user.value.id)
-    if (idx === -1) throw new Error('Користувача не знайдено')
-    if (updates.newPassword) {
-      if (updates.currentPassword !== users[idx].password) throw new Error('Невірний поточний пароль')
-      users[idx].password = updates.newPassword
+  async function init() {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) {
+      await loadUser(data.session.user)
     }
-    if (updates.name) users[idx].name = updates.name
-    if (updates.lastName !== undefined) users[idx].lastName = updates.lastName
-    localStorage.setItem('zib_users', JSON.stringify(users))
-    const { password: _, ...safeUser } = users[idx]
-    user.value = safeUser
-    localStorage.setItem('zib_user', JSON.stringify(safeUser))
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await loadUser(session.user)
+      } else if (event === 'SIGNED_OUT') {
+        user.value = null
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        await loadUser(session.user)
+      }
+    })
   }
 
-  return { user, isLoggedIn, register, login, logout, updateProfile }
+  async function loadUser(authUser) {
+    const { data } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_id', authUser.id)
+      .single()
+    if (data) {
+      user.value = { ...data, email: authUser.email }
+    }
+  }
+
+  async function register(name, lastName, age, email, password) {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) throw new Error(error.message)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    const { error: dbError } = await supabase.from('users').insert({
+      auth_id: data.user.id,
+      name,
+      last_name: lastName,
+      age: parseInt(age),
+      email,
+      password_hash: '—'
+    })
+    if (dbError) throw new Error(dbError.message)
+    await new Promise(resolve => setTimeout(resolve, 300))
+    await loadUser(data.user)
+  }
+
+  async function login(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw new Error('Невірний email або пароль')
+    await loadUser(data.user)
+  }
+
+  async function logout() {
+    await supabase.auth.signOut()
+    user.value = null
+  }
+
+  async function updateProfile(updates) {
+    if (!user.value) return
+    if (updates.newPassword) {
+      const { error } = await supabase.auth.updateUser({ password: updates.newPassword })
+      if (error) throw new Error(error.message)
+    }
+    const { error } = await supabase
+      .from('users')
+      .update({ name: updates.name, last_name: updates.lastName })
+      .eq('id', user.value.id)
+    if (error) throw new Error(error.message)
+    user.value = { ...user.value, name: updates.name, last_name: updates.lastName }
+  }
+
+  async function deleteAccount(userId) {
+  // Спочатку видаляємо всі події юзера
+  const { data: userEvents } = await supabase
+    .from('events')
+    .select('id')
+    .eq('user_id', userId)
+  
+  if (userEvents && userEvents.length > 0) {
+    const eventIds = userEvents.map(e => e.id)
+    // Видаляємо галерею цих подій
+    await supabase.from('gallery_photos').delete().in('event_id', eventIds)
+    // Видаляємо реєстрації на ці події
+    await supabase.from('registrations').delete().in('event_id', eventIds)
+    // Видаляємо самі події
+    await supabase.from('events').delete().eq('user_id', userId)
+  }
+
+  // Видаляємо юзера з нашої таблиці
+  await supabase.from('users').delete().eq('id', userId)
+  // Виходимо
+  await supabase.auth.signOut()
+  user.value = null
+}
+
+  return { user, isLoggedIn, init, register, login, logout, updateProfile, deleteAccount }
 })
 
 // ── Events Store ──────────────────────────────────────────────
 export const useEventsStore = defineStore('events', () => {
-  const customEvents = ref(JSON.parse(localStorage.getItem('zib_events') || '[]'))
-  const mockOverrides = ref(JSON.parse(localStorage.getItem('zib_mock_overrides') || '{}'))
-  const galleryPhotos = ref(JSON.parse(localStorage.getItem('zib_gallery') || '[]'))
+  const dbEvents = ref([])
+  const galleryPhotos = ref([])
+  const loading = ref(false)
 
-  function _persist() {
-    localStorage.setItem('zib_events', JSON.stringify(customEvents.value))
+  function dbToEvent(e) {
+    return {
+      id: e.id,
+      title: e.title,
+      city: e.city,
+      category: e.category,
+      date: e.date,
+      duration: e.duration,
+      description: e.description,
+      image: e.image_url,
+      maxParticipants: e.max_participants,
+      currentParticipants: e.current_participants,
+      host: e.host_name,
+      userId: e.user_id
+    }
   }
-  function _persistOverrides() {
-    localStorage.setItem('zib_mock_overrides', JSON.stringify(mockOverrides.value))
+
+  async function fetchEvents() {
+    loading.value = true
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('date', { ascending: true })
+    if (!error && data) {
+      dbEvents.value = data.map(dbToEvent)
+    }
+    loading.value = false
   }
-  function _persistGallery() {
-    localStorage.setItem('zib_gallery', JSON.stringify(galleryPhotos.value))
+
+  async function fetchGallery() {
+    const { data, error } = await supabase
+      .from('gallery_photos')
+      .select('*')
+      .order('added_at', { ascending: false })
+    if (!error && data) {
+      galleryPhotos.value = data.map(p => ({
+        id: p.id,
+        eventId: p.event_id,
+        url: p.url,
+        eventTitle: p.event_title,
+        eventDate: p.event_date,
+        addedAt: p.added_at
+      }))
+    }
   }
 
   const allEvents = computed(() => {
-    const mocks = MOCK_EVENTS.map(e => ({ ...e, ...mockOverrides.value[e.id] }))
-    return [...mocks, ...customEvents.value].sort((a, b) => new Date(a.date) - new Date(b.date))
+    return dbEvents.value
+      .filter(e => getEventStatus(e) !== 'ended')
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
   })
 
-function getAll() {
-  return allEvents.value.filter(e => getEventStatus(e) !== 'ended')
-}
+  function getAll() { return allEvents.value }
 
   function getById(id) {
-    const mock = MOCK_EVENTS.find(e => e.id === id)
-    if (mock) return { ...mock, ...mockOverrides.value[id] }
-    // search in reactive ref directly
-    return customEvents.value.find(e => e.id === id) || null
+    return dbEvents.value.find(e => e.id === id) || null
   }
-
-  const userEventsMap = computed(() => {
-    const map = {}
-    for (const e of customEvents.value) {
-      if (!map[e.userId]) map[e.userId] = []
-      map[e.userId].push(e)
-    }
-    return map
-  })
 
   function getUserEvents(userId) {
-    return (userEventsMap.value[userId] || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date))
+    return dbEvents.value
+      .filter(e => e.userId === userId)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
   }
 
-  function createEvent(data, userId) {
-    const newEvent = { ...data, id: Date.now().toString(), userId, currentParticipants: 0 }
-    customEvents.value = [...customEvents.value, newEvent]
-    _persist()
-    return newEvent
+  async function createEvent(data, userId) {
+    const { data: inserted, error } = await supabase
+      .from('events')
+      .insert({
+        title: data.title,
+        city: data.city,
+        category: data.category,
+        date: data.date + ':00+03:00',
+        duration: data.duration,
+        description: data.description,
+        image_url: data.image || null,
+        max_participants: data.maxParticipants,
+        current_participants: 0,
+        host_name: data.host,
+        user_id: userId
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    dbEvents.value = [...dbEvents.value, dbToEvent(inserted)]
+    return inserted
   }
 
-  function deleteEvent(id, userId) {
-    customEvents.value = customEvents.value.filter(e => !(e.id === id && e.userId === userId))
-    _persist()
-    // also clean up gallery photos for this event
+  async function deleteEvent(id, userId) {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+    if (error) throw new Error(error.message)
+    dbEvents.value = dbEvents.value.filter(e => e.id !== id)
     galleryPhotos.value = galleryPhotos.value.filter(p => p.eventId !== id)
-    _persistGallery()
   }
 
-  function joinEvent(eventId, { name, phone, email }) {
-    const registrations = JSON.parse(localStorage.getItem('zib_registrations') || '[]')
-    const already = registrations.find(r => r.eventId === eventId && (r.email === email || r.phone === phone))
-    if (already) return 'Ти вже зареєстрований на цю подію з таким email або телефоном'
-    const event = getById(eventId)
-    if (!event) return 'Подію не знайдено'
-    if (event.currentParticipants >= event.maxParticipants) return 'Вільних місць немає'
-    const isMock = MOCK_EVENTS.some(e => e.id === eventId)
-    if (isMock) {
-      mockOverrides.value = {
-        ...mockOverrides.value,
-        [eventId]: { ...mockOverrides.value[eventId], currentParticipants: (event.currentParticipants || 0) + 1 }
-      }
-      _persistOverrides()
-    } else {
-      customEvents.value = customEvents.value.map(e =>
-        e.id === eventId ? { ...e, currentParticipants: (e.currentParticipants || 0) + 1 } : e
-      )
-      _persist()
-    }
-    registrations.push({ eventId, name, phone, email, date: new Date().toISOString() })
-    localStorage.setItem('zib_registrations', JSON.stringify(registrations))
+  async function joinEvent(eventId, { name, phone, email }) {
+    // Перевірка дублювання
+    const { data: existing } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('email', email)
+      .maybeSingle()
+    if (existing) return 'Ти вже зареєстрований на цю подію з таким email'
+
+    const { error } = await supabase.from('registrations').insert({
+      event_id: eventId,
+      name,
+      phone: phone || null,
+      email
+    })
+    if (error) return 'Не вдалось зареєструватись'
+
+    await supabase.rpc('increment_participants', { event_id: eventId })
+    await fetchEvents()
     return null
   }
 
-  function hasJoined(eventId, email, phone) {
-    const registrations = JSON.parse(localStorage.getItem('zib_registrations') || '[]')
-    return registrations.some(r => r.eventId === eventId && (r.email === email || (phone && r.phone === phone)))
+  async function hasJoined(eventId, email) {
+    if (!email) return false
+    const { data } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('email', email)
+      .maybeSingle()
+    return !!data
   }
 
-  // ── Gallery ──
-  function addGalleryPhoto(eventId, url) {
+  async function addGalleryPhoto(eventId, url) {
     const event = getById(eventId)
     if (!event) return
-    const newPhoto = {
-      id: Date.now().toString(),
-      eventId,
+    const { error } = await supabase.from('gallery_photos').insert({
+      event_id: eventId,
       url,
-      eventTitle: event.title,
-      eventDate: event.date,
-      addedAt: new Date().toISOString()
-    }
-    galleryPhotos.value = [...galleryPhotos.value, newPhoto]
-    _persistGallery()
+      event_title: event.title,
+      event_date: event.date
+    })
+    if (!error) await fetchGallery()
   }
 
-  function deleteGalleryPhoto(photoId) {
-    galleryPhotos.value = galleryPhotos.value.filter(p => p.id !== photoId)
-    _persistGallery()
+  async function deleteGalleryPhoto(photoId) {
+    const { error } = await supabase.from('gallery_photos').delete().eq('id', photoId)
+    if (!error) {
+      galleryPhotos.value = galleryPhotos.value.filter(p => p.id !== photoId)
+    }
   }
 
   const CITIES = ['Всі міста', 'Київ', 'Львів', 'Одеса', 'Харків', 'Дніпро']
   const CATEGORIES = ['Всі категорії', 'Культура', 'Спорт', 'Музика', 'Майстерня', 'Навчання', 'Кіно', 'Мистецтво']
 
   return {
-    allEvents, galleryPhotos,
+    allEvents, galleryPhotos, loading,
+    fetchEvents, fetchGallery,
     getAll, getById, getUserEvents,
     createEvent, deleteEvent, joinEvent, hasJoined,
     addGalleryPhoto, deleteGalleryPhoto,

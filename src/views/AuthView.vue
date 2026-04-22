@@ -86,6 +86,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
+import { useEventsStore } from '@/stores'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -96,18 +97,21 @@ const loginErrors = ref({})
 const regData = ref({ name: '', lastName: '', age: '', email: '', password: '', confirm: '', terms: false })
 const regErrors = ref({})
 
-function handleLogin() {
+async function handleLogin() {
   loginErrors.value = {}
   if (!loginData.value.email) loginErrors.value.email = 'Введи email'
   if (!loginData.value.password) loginErrors.value.password = 'Введи пароль'
   if (Object.keys(loginErrors.value).length) return
   try {
-    auth.login(loginData.value.email, loginData.value.password)
+    await auth.login(loginData.value.email, loginData.value.password)
+    const events = useEventsStore()
+    await events.fetchEvents()
+    await events.fetchGallery()
     router.push('/cabinet')
   } catch (e) { loginErrors.value.general = e.message }
 }
 
-function handleRegister() {
+async function handleRegister() {
   regErrors.value = {}
   if (!regData.value.name.trim()) regErrors.value.name = "Введи ім'я"
   if (!regData.value.lastName.trim()) regErrors.value.lastName = 'Введи прізвище'
@@ -122,7 +126,10 @@ function handleRegister() {
   if (!regData.value.terms) regErrors.value.terms = 'Необхідно погодитись з правилами'
   if (Object.keys(regErrors.value).length) return
   try {
-    auth.register(regData.value.name, regData.value.lastName, regData.value.age, regData.value.email, regData.value.password)
+    await auth.register(regData.value.name, regData.value.lastName, regData.value.age, regData.value.email, regData.value.password)
+    const events = useEventsStore()
+    await events.fetchEvents()
+    await events.fetchGallery()
     router.push('/cabinet')
   } catch (e) { regErrors.value.general = e.message }
 }
