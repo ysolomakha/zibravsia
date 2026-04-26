@@ -35,6 +35,9 @@
             </div>
             <div class="my-event-actions">
               <RouterLink :to="`/events/${event.id}`" class="btn btn-ghost">Переглянути</RouterLink>
+              <button class="btn-participants" @click="openRegistrations(event)">
+                Учасники ({{ event.currentParticipants }})
+              </button>
               <button
                 v-if="isPast(event.date)"
                 class="btn-add-photo"
@@ -56,6 +59,49 @@
       </div>
 
     </div>
+
+    <!-- ── Registrations Modal ── -->
+    <Transition name="modal">
+      <div v-if="registrationsEvent" class="modal-overlay" @click.self="registrationsEvent = null">
+        <div class="modal-box registrations-modal">
+          <button class="modal-close" @click="registrationsEvent = null">✕</button>
+          <h2 class="modal-title">Учасники події</h2>
+          <p class="registrations-event-name">{{ registrationsEvent.title }}</p>
+
+          <div v-if="registrationsLoading" class="registrations-loading">Завантаження...</div>
+
+          <div v-else-if="registrationsList.length === 0" class="registrations-empty">
+            Ще ніхто не зареєструвався
+          </div>
+
+          <div v-else>
+            <p class="registrations-count">{{ registrationsList.length }} / {{ registrationsEvent.maxParticipants }} учасників</p>
+            <div class="registrations-table-wrap">
+              <table class="registrations-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Ім'я</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th>Дата реєстрації</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(reg, i) in registrationsList" :key="reg.id">
+                    <td class="reg-num">{{ i + 1 }}</td>
+                    <td>{{ reg.name }}</td>
+                    <td class="reg-email">{{ reg.email }}</td>
+                    <td>{{ reg.phone || '—' }}</td>
+                    <td class="reg-date">{{ formatShortDate(reg.registered_at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- ── Create Event Modal ── -->
     <Transition name="modal">
@@ -252,8 +298,31 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function formatShortDate(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
 function isPast(date) {
   return new Date(date) < new Date()
+}
+
+// ── Registrations ──
+const registrationsEvent = ref(null)
+const registrationsList = ref([])
+const registrationsLoading = ref(false)
+
+async function openRegistrations(event) {
+  registrationsEvent.value = event
+  registrationsList.value = []
+  registrationsLoading.value = true
+  try {
+    registrationsList.value = await eventsStore.getEventRegistrations(event.id)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    registrationsLoading.value = false
+  }
 }
 
 // ── Create ──
@@ -403,19 +472,39 @@ async function doDeleteAccount() {
 .my-event-city { font-size: 12px; color: var(--lavender); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
 .my-event-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
 .my-event-date { font-size: 13px; color: var(--text-muted); }
-.my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 148px; }
+.my-event-actions .btn { width: 100%; justify-content: center; text-align: center; }
 
-.btn-delete { font-size: 13px; color: #ff6b6b; background: none; border: none; cursor: pointer; padding: 6px 12px; border-radius: 6px; transition: background var(--transition); font-family: var(--font-body); }
-.btn-delete:hover { background: rgba(255,107,107,0.1); }
+.btn-participants { font-size: 13px; color: var(--text-muted); background: none; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); white-space: nowrap; width: 100%; text-align: center; }
+.btn-participants:hover { border-color: var(--lavender); color: var(--lavender); }
 
-.btn-add-photo { font-size: 13px; color: var(--lavender); background: rgba(168,163,246,0.08); border: 1px solid rgba(168,163,246,0.2); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); }
+.btn-add-photo { font-size: 13px; color: var(--lavender); background: rgba(168,163,246,0.08); border: 1px solid rgba(168,163,246,0.2); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: var(--font-body); transition: all var(--transition); width: 100%; text-align: center; }
 .btn-add-photo:hover { background: rgba(168,163,246,0.15); }
+
+.btn-delete { font-size: 13px; color: #ff6b6b; background: none; border: 1px solid transparent; cursor: pointer; padding: 8px 12px; border-radius: 6px; transition: all var(--transition); font-family: var(--font-body); width: 100%; text-align: center; }
+.btn-delete:hover { background: rgba(255,107,107,0.08); border-color: rgba(255,107,107,0.2); }
 
 .cabinet-empty { text-align: center; padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 20px; color: var(--text-muted); }
 
 .delete-account-row { padding-top: 32px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
 .btn-delete-account { font-size: 13px; color: var(--text-muted); background: none; border: none; cursor: pointer; font-family: var(--font-body); transition: color var(--transition); padding: 6px 0; }
 .btn-delete-account:hover { color: #ff6b6b; }
+
+/* ── Registrations Modal ── */
+.registrations-modal { max-width: 680px; max-height: 85vh; display: flex; flex-direction: column; }
+.registrations-event-name { color: var(--text-muted); font-size: 14px; margin-top: -16px; margin-bottom: 24px; }
+.registrations-count { font-size: 13px; color: var(--lavender); margin-bottom: 16px; font-weight: 500; }
+.registrations-loading { color: var(--text-muted); font-size: 14px; padding: 20px 0; }
+.registrations-empty { color: var(--text-muted); font-size: 14px; padding: 32px 0; text-align: center; }
+.registrations-table-wrap { overflow-x: auto; overflow-y: auto; max-height: 420px; border-radius: var(--radius); border: 1px solid var(--border); }
+.registrations-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.registrations-table th { background: var(--bg-2); color: var(--text-muted); font-weight: 500; text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+.registrations-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.registrations-table tr:last-child td { border-bottom: none; }
+.registrations-table tr:hover td { background: var(--bg-2); }
+.reg-num { color: var(--text-muted); width: 32px; }
+.reg-email { color: var(--text-muted); }
+.reg-date { color: var(--text-muted); white-space: nowrap; }
 
 .list-enter-active, .list-leave-active { transition: all 0.3s ease; }
 .list-enter-from { opacity: 0; transform: translateY(-8px); }
