@@ -100,28 +100,22 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function deleteAccount(userId) {
-  // Спочатку видаляємо всі події юзера
-  const { data: userEvents } = await supabase
-    .from('events')
-    .select('id')
-    .eq('user_id', userId)
-  
-  if (userEvents && userEvents.length > 0) {
-    const eventIds = userEvents.map(e => e.id)
-    // Видаляємо галерею цих подій
-    await supabase.from('gallery_photos').delete().in('event_id', eventIds)
-    // Видаляємо реєстрації на ці події
-    await supabase.from('registrations').delete().in('event_id', eventIds)
-    // Видаляємо самі події
-    await supabase.from('events').delete().eq('user_id', userId)
-  }
+    const { data: userEvents } = await supabase
+      .from('events')
+      .select('id')
+      .eq('user_id', userId)
 
-  // Видаляємо юзера з нашої таблиці
-  await supabase.from('users').delete().eq('id', userId)
-  // Виходимо
-  await supabase.auth.signOut()
-  user.value = null
-}
+    if (userEvents && userEvents.length > 0) {
+      const eventIds = userEvents.map(e => e.id)
+      await supabase.from('gallery_photos').delete().in('event_id', eventIds)
+      await supabase.from('registrations').delete().in('event_id', eventIds)
+      await supabase.from('events').delete().eq('user_id', userId)
+    }
+
+    await supabase.from('users').delete().eq('id', userId)
+    await supabase.auth.signOut()
+    user.value = null
+  }
 
   return { user, isLoggedIn, init, register, login, logout, updateProfile, deleteAccount }
 })
@@ -129,6 +123,7 @@ export const useAuthStore = defineStore('auth', () => {
 // ── Events Store ──────────────────────────────────────────────
 export const useEventsStore = defineStore('events', () => {
   const dbEvents = ref([])
+  const filteredEvents = ref([])
   const galleryPhotos = ref([])
   const loading = ref(false)
 
@@ -149,6 +144,7 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
+  // Базова загрузка всіх подій (використовується при старті і після мутацій)
   async function fetchEvents() {
     loading.value = true
     const { data, error } = await supabase
@@ -158,6 +154,54 @@ export const useEventsStore = defineStore('events', () => {
     if (!error && data) {
       dbEvents.value = data.map(dbToEvent)
     }
+    loading.value = false
+  }
+
+  // RESTful API фільтрація/сортування
+  async function fetchFilteredEvents({ city, category, sortBy, query } = {}) {
+    loading.value = true
+
+    let req = supabase.from('events').select('*')
+
+    if (city && city !== 'Всі міста') {
+      req = req.eq('city', city)
+    }
+
+    if (category && category !== 'Всі категорії') {
+      req = req.eq('category', category)
+    }
+
+    if (query && query.trim()) {
+      req = req.ilike('title', `%${query.trim()}%`)
+    }
+
+    if (sortBy === 'date-desc') {
+      req = req.order('date', { ascending: false })
+    } else if (sortBy === 'spots') {
+      req = req.order('date', { ascending: true })
+    } else if (sortBy === 'duration') {
+      req = req.order('duration', { ascending: true })
+    } else {
+      req = req.order('date', { ascending: true })
+    }
+
+    const { data, error } = await req
+
+    if (!error && data) {
+      let events = data.map(dbToEvent).filter(e => getEventStatus(e) !== 'ended')
+
+      // Сортування по вільних місцях — лише на клієнті після отримання даних
+      if (sortBy === 'spots') {
+        events = events.sort(
+          (a, b) =>
+            (b.maxParticipants - b.currentParticipants) -
+            (a.maxParticipants - a.currentParticipants)
+        )
+      }
+
+      filteredEvents.value = events
+    }
+
     loading.value = false
   }
 
@@ -231,7 +275,6 @@ export const useEventsStore = defineStore('events', () => {
   }
 
   async function joinEvent(eventId, { name, phone, email }) {
-    // Перевірка дублювання
     const { data: existing } = await supabase
       .from('registrations')
       .select('id')
@@ -287,8 +330,8 @@ export const useEventsStore = defineStore('events', () => {
   const CATEGORIES = ['Всі категорії', 'Культура', 'Спорт', 'Музика', 'Майстерня', 'Навчання', 'Кіно', 'Мистецтво']
 
   return {
-    allEvents, galleryPhotos, loading,
-    fetchEvents, fetchGallery,
+    allEvents, filteredEvents, galleryPhotos, loading,
+    fetchEvents, fetchFilteredEvents, fetchGallery,
     getAll, getById, getUserEvents,
     createEvent, deleteEvent, joinEvent, hasJoined,
     addGalleryPhoto, deleteGalleryPhoto,
