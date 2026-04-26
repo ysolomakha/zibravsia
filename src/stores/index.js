@@ -144,7 +144,6 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  // Базова загрузка всіх подій (використовується при старті і після мутацій)
   async function fetchEvents() {
     loading.value = true
     const { data, error } = await supabase
@@ -157,7 +156,7 @@ export const useEventsStore = defineStore('events', () => {
     loading.value = false
   }
 
-  // RESTful API фільтрація/сортування
+  // ── RESTful API фільтрація/сортування ─────────────────────
   async function fetchFilteredEvents({ city, category, sortBy, query } = {}) {
     loading.value = true
 
@@ -166,11 +165,9 @@ export const useEventsStore = defineStore('events', () => {
     if (city && city !== 'Всі міста') {
       req = req.eq('city', city)
     }
-
     if (category && category !== 'Всі категорії') {
       req = req.eq('category', category)
     }
-
     if (query && query.trim()) {
       req = req.ilike('title', `%${query.trim()}%`)
     }
@@ -190,7 +187,6 @@ export const useEventsStore = defineStore('events', () => {
     if (!error && data) {
       let events = data.map(dbToEvent).filter(e => getEventStatus(e) !== 'ended')
 
-      // Сортування по вільних місцях — лише на клієнті після отримання даних
       if (sortBy === 'spots') {
         events = events.sort(
           (a, b) =>
@@ -220,6 +216,16 @@ export const useEventsStore = defineStore('events', () => {
         addedAt: p.added_at
       }))
     }
+  }
+
+  async function getEventRegistrations(eventId) {
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('id, name, email, phone, registered_at')
+      .eq('event_id', eventId)
+      .order('registered_at', { ascending: true })
+    if (error) throw new Error(error.message)
+    return data || []
   }
 
   const allEvents = computed(() => {
@@ -335,6 +341,7 @@ export const useEventsStore = defineStore('events', () => {
     getAll, getById, getUserEvents,
     createEvent, deleteEvent, joinEvent, hasJoined,
     addGalleryPhoto, deleteGalleryPhoto,
+    getEventRegistrations,
     CITIES, CATEGORIES
   }
 })
