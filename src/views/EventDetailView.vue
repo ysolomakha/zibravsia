@@ -10,7 +10,6 @@
             <span class="tag detail-cat" :class="categoryClass">{{ event.category }}</span>
           </div>
 
-          <!-- Фото з події — видно лише організатору -->
           <div v-if="isOwner && galleryPhotos.length" class="event-gallery">
             <h3 class="event-gallery-title">Фото з події</h3>
             <div class="event-gallery-grid">
@@ -176,7 +175,7 @@ onMounted(async () => {
   }
 })
 
-// Gallery — only photos for this event
+// Gallery
 const galleryPhotos = computed(() => {
   if (!event.value) return []
   return eventsStore.galleryPhotos.filter(p => p.eventId === event.value.id)

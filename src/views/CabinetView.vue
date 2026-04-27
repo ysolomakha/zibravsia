@@ -35,8 +35,9 @@
             </div>
             <div class="my-event-actions">
               <RouterLink :to="`/events/${event.id}`" class="btn btn-ghost">Переглянути</RouterLink>
+              <!-- Кнопка учасників — показує кількість і відкриває модалку зі списком -->
               <button class="btn-participants" @click="openRegistrations(event)">
-                Учасники ({{ event.currentParticipants }})
+                👥 Учасники ({{ event.currentParticipants }})
               </button>
               <button
                 v-if="isPast(event.date)"
@@ -54,11 +55,61 @@
         </div>
       </div>
 
+      <!-- ── Мої реєстрації ── -->
+      <div class="cabinet-section">
+        <h2 class="section-title">
+          Мої реєстрації
+          <span class="events-count">{{ myRegistrations.length }}</span>
+        </h2>
+
+        <div v-if="regsLoading" class="cabinet-empty"><p>Завантаження...</p></div>
+
+        <TransitionGroup v-else-if="myRegistrations.length" name="list" tag="div" class="events-list">
+          <div v-for="reg in myRegistrations" :key="reg.registrationId" class="my-event-card">
+            <div class="my-event-img">
+              <img :src="reg.event.image_url || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=400&q=60'" :alt="reg.event.title" />
+            </div>
+            <div class="my-event-body">
+              <div class="my-event-meta">
+                <span class="tag tag-lavender">{{ reg.event.category }}</span>
+                <span class="my-event-city">{{ reg.event.city }}</span>
+              </div>
+              <h3 class="my-event-title">{{ reg.event.title }}</h3>
+              <p class="my-event-date">{{ formatDate(reg.event.date) }} · {{ reg.event.duration }}</p>
+              <p class="reg-since">Зареєстровано {{ formatShortDate(reg.registeredAt) }}</p>
+            </div>
+            <div class="my-event-actions">
+              <RouterLink :to="`/events/${reg.event.id}`" class="btn btn-ghost">Переглянути</RouterLink>
+              <button class="btn-delete" @click="confirmCancel(reg)">Скасувати</button>
+            </div>
+          </div>
+        </TransitionGroup>
+
+        <div v-else class="cabinet-empty">
+          <p>Ти ще не реєструвався на жодну подію</p>
+          <RouterLink to="/events" class="btn btn-outline">Переглянути події</RouterLink>
+        </div>
+      </div>
+
       <div class="delete-account-row">
         <button class="btn-delete-account" @click="showDeleteAccountModal = true">Видалити акаунт</button>
       </div>
 
     </div>
+
+    <!-- ── Cancel registration confirm ── -->
+    <Transition name="modal">
+      <div v-if="regToCancel" class="modal-overlay" @click.self="regToCancel = null">
+        <div class="modal-box confirm-modal">
+          <h2 class="modal-title">Скасувати реєстрацію?</h2>
+          <p class="confirm-text">Ти скасуєш участь у події <strong>«{{ regToCancel.event.title }}»</strong>. Ти зможеш зареєструватись знову, якщо будуть вільні місця.</p>
+          <div class="confirm-actions">
+            <button class="btn btn-outline" @click="regToCancel = null">Залишити</button>
+            <button class="btn-danger-confirm" @click="doCancel">Так, скасувати</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- ── Registrations Modal ── -->
     <Transition name="modal">
@@ -284,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, useEventsStore, formatDuration } from '@/stores'
 
@@ -293,6 +344,43 @@ const eventsStore = useEventsStore()
 const router = useRouter()
 
 const myEvents = computed(() => eventsStore.getUserEvents(auth.user.id))
+
+// ── My Registrations ──
+const myRegistrations = ref([])
+const regsLoading = ref(false)
+const regToCancel = ref(null)
+
+async function loadMyRegistrations() {
+  regsLoading.value = true
+  try {
+    myRegistrations.value = await eventsStore.getUserRegistrations(auth.user.email)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    regsLoading.value = false
+  }
+}
+
+function confirmCancel(reg) {
+  regToCancel.value = reg
+}
+
+async function doCancel() {
+  try {
+    await eventsStore.cancelRegistration(regToCancel.value.registrationId, regToCancel.value.event.id)
+    myRegistrations.value = myRegistrations.value.filter(
+      r => r.registrationId !== regToCancel.value.registrationId
+    )
+  } catch (e) {
+    console.error(e)
+  } finally {
+    regToCancel.value = null
+  }
+}
+
+
+onMounted(() => { loadMyRegistrations() })
+
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -307,7 +395,7 @@ function isPast(date) {
   return new Date(date) < new Date()
 }
 
-// ── Registrations ──
+// Registrations
 const registrationsEvent = ref(null)
 const registrationsList = ref([])
 const registrationsLoading = ref(false)
@@ -325,7 +413,7 @@ async function openRegistrations(event) {
   }
 }
 
-// ── Create ──
+// Create
 const showCreateModal = ref(false)
 const createDone = ref(false)
 const durationHours = ref(2)
@@ -379,7 +467,7 @@ function closeCreate() {
   }, 300)
 }
 
-// ── Edit ──
+// Edit
 const showEditModal = ref(false)
 const editDone = ref(false)
 const editData = ref({ name: '', lastName: '', currentPassword: '', newPassword: '' })
@@ -412,7 +500,7 @@ async function submitEdit() {
   } catch (e) { editErrors.value.general = e.message }
 }
 
-// ── Delete event ──
+// Delete event
 const eventToDelete = ref(null)
 function confirmDelete(event) { eventToDelete.value = event }
 async function doDeleteEvent() {
@@ -420,7 +508,7 @@ async function doDeleteEvent() {
   eventToDelete.value = null
 }
 
-// ── Gallery photo ──
+// Gallery photo
 const photoEvent = ref(null)
 const photoUrl = ref('')
 const photoError = ref('')
@@ -441,7 +529,7 @@ async function submitPhoto() {
   setTimeout(() => { photoEvent.value = null }, 2000)
 }
 
-// ── Delete account ──
+// Delete account
 const showDeleteAccountModal = ref(false)
 async function doDeleteAccount() {
   await auth.deleteAccount(auth.user.id)
@@ -472,6 +560,7 @@ async function doDeleteAccount() {
 .my-event-city { font-size: 12px; color: var(--lavender); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
 .my-event-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
 .my-event-date { font-size: 13px; color: var(--text-muted); }
+.reg-since { font-size: 12px; color: var(--text-muted); opacity: 0.6; margin-top: 2px; }
 .my-event-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 148px; }
 .my-event-actions .btn { width: 100%; justify-content: center; text-align: center; }
 

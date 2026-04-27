@@ -83,7 +83,6 @@
 .about-quote { border-left: 2px solid var(--yellow); padding: 8px 0 8px 32px; margin-bottom: 72px; }
 .about-quote blockquote { font-size: clamp(18px, 3vw, 26px); font-style: italic; color: var(--text-muted); line-height: 1.5; }
 
-/* Contact */
 .contact-section {
   background: var(--bg-2);
   border: 1px solid var(--border);
