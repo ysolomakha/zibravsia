@@ -11,7 +11,6 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Ініціалізація сесії і даних перед монтуванням
 const authStore = useAuthStore()
 const eventsStore = useEventsStore()
 

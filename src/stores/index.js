@@ -25,7 +25,7 @@ export function getEventStatus(event) {
   return 'ended'
 }
 
-// ── Auth Store ────────────────────────────────────────────────
+// Auth Store 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const isLoggedIn = computed(() => !!user.value)
@@ -120,7 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
   return { user, isLoggedIn, init, register, login, logout, updateProfile, deleteAccount }
 })
 
-// ── Events Store ──────────────────────────────────────────────
+// Events Store 
 export const useEventsStore = defineStore('events', () => {
   const dbEvents = ref([])
   const filteredEvents = ref([])
@@ -156,7 +156,7 @@ export const useEventsStore = defineStore('events', () => {
     loading.value = false
   }
 
-  // ── RESTful API фільтрація/сортування ─────────────────────
+  // RESTful API фільтрація/сортування 
   async function fetchFilteredEvents({ city, category, sortBy, query } = {}) {
     loading.value = true
 
@@ -226,6 +226,40 @@ export const useEventsStore = defineStore('events', () => {
       .order('registered_at', { ascending: true })
     if (error) throw new Error(error.message)
     return data || []
+  }
+
+  async function getUserRegistrations(email) {
+    if (!email) return []
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('id, event_id, name, registered_at')
+      .eq('email', email)
+      .order('registered_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    if (!data || data.length === 0) return []
+
+    const eventIds = data.map(r => r.event_id)
+    const { data: events, error: eventsError } = await supabase
+      .from('events')
+      .select('id, title, city, category, date, duration, image_url')
+      .in('id', eventIds)
+    if (eventsError) throw new Error(eventsError.message)
+
+    return data.map(reg => ({
+      registrationId: reg.id,
+      registeredAt: reg.registered_at,
+      event: events.find(e => e.id === reg.event_id) || null
+    })).filter(r => r.event !== null)
+  }
+
+  async function cancelRegistration(registrationId, eventId) {
+    const { error } = await supabase
+      .from('registrations')
+      .delete()
+      .eq('id', registrationId)
+    if (error) throw new Error(error.message)
+    await supabase.rpc('decrement_participants', { event_id: eventId })
+    await fetchEvents()
   }
 
   const allEvents = computed(() => {
@@ -342,6 +376,7 @@ export const useEventsStore = defineStore('events', () => {
     createEvent, deleteEvent, joinEvent, hasJoined,
     addGalleryPhoto, deleteGalleryPhoto,
     getEventRegistrations,
+    getUserRegistrations, cancelRegistration,
     CITIES, CATEGORIES
   }
 })

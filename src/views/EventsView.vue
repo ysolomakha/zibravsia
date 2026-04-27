@@ -55,8 +55,7 @@ const selectedCity = ref('Всі міста')
 const selectedCategory = ref('Всі категорії')
 const sortBy = ref('date-asc')
 
-// Викликаємо fetchFilteredEvents — фільтри і сортування йдуть у Supabase REST запит,
-// а не обраховуються в JS на вже завантаженому масиві
+
 async function applyFilters() {
   await eventsStore.fetchFilteredEvents({
     city: selectedCity.value,
@@ -83,7 +82,6 @@ async function resetFilters() {
   await applyFilters()
 }
 
-// Smart label — рахуємо по filteredEvents зі стору
 const countLabel = computed(() => {
   const n = eventsStore.filteredEvents.length
   const word = n % 10 === 1 && n % 100 !== 11 ? 'подія'
